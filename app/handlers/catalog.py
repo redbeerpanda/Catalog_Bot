@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db.crud import get_products_page
 from app.keyboards.catalog import catalog_pagination_kb
+import requests
 
 router = Router(name="catalog")
 
@@ -25,23 +26,37 @@ def _build_product_card(product):
     return product.image_url, caption
 
 
-# Обработчик команды /catalog
-@router.message(Command("catalog"))
-async def catalog_cmd(message: Message, session: AsyncSession):
-
-    page = 1
-    items, total_pages = await get_products_page(session, page)
-    if not items:
-        await message.answer("Каталог пуст. Добавьте товары и попробуйте снова.")
-        return
-    product = items[0]
+# Проверка картинки на доступ
+async def _show_product_card(
+    cb: CallbackQuery, product, page: int, total_pages: int, replace: bool = False
+) -> bool:
     image_url, caption = _build_product_card(product)
-    await message.answer_photo(
-        photo=image_url,
-        caption=caption,
-        parse_mode="HTML",
-        reply_markup=catalog_pagination_kb(page, total_pages),
-    )
+
+    async def _try(image: str) -> bool:
+        try:
+            if replace:
+                await cb.message.edit_media(
+                    media=InputMediaPhoto(
+                        media=image, caption=caption, parse_mode="HTML"
+                    ),
+                    reply_markup=catalog_pagination_kb(page, total_pages),
+                )
+            else:
+                await cb.message.answer_photo(
+                    photo=image,
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=catalog_pagination_kb(page, total_pages),
+                )
+            return True
+        except Exception:
+            return False
+
+    if await _try(image_url):
+        return True
+    if await _try(settings.PLACEHOLDER_IMAGE):
+        return True
+    return False
 
 
 # Обработчик перелистывания страниц каталога
@@ -52,20 +67,17 @@ async def catalog_page_cb(cb: CallbackQuery, session: AsyncSession):
     except Exception:
         await cb.answer("Некорректная страница", show_alert=True)
         return
+
     items, total_pages = await get_products_page(session, page)
     if not items:
         await cb.answer("Нет товаров на этой странице.", show_alert=True)
         return
+
     product = items[0]
-    image_url, caption = _build_product_card(product)
-    try:
-        await cb.message.edit_media(
-            media=InputMediaPhoto(media=image_url, caption=caption, parse_mode="HTML"),
-            reply_markup=catalog_pagination_kb(page, total_pages),
-        )
-    except Exception:
+    if not await _show_product_card(cb, product, page, total_pages, replace=True):
         await cb.answer("Не удалось обновить карточку.", show_alert=True)
         return
+
     await cb.answer()
 
 
@@ -74,17 +86,15 @@ async def catalog_page_cb(cb: CallbackQuery, session: AsyncSession):
 async def open_catalog_cb(cb: CallbackQuery, session: AsyncSession):
     await cb.message.delete()
     page = 1
+
     items, total_pages = await get_products_page(session, page)
     if not items:
         await cb.message.answer("Каталог пуст. Добавьте товары и попробуйте снова.")
         await cb.answer()
         return
+
     product = items[0]
-    image_url, caption = _build_product_card(product)
-    msg = await cb.message.answer_photo(
-        photo=image_url,
-        caption=caption,
-        parse_mode="HTML",
-        reply_markup=catalog_pagination_kb(page, total_pages),
-    )
+    if not await _show_product_card(cb, product, page, total_pages, replace=False):
+        await cb.message.answer("Не удалось открыть каталог. Попробуйте позже.")
+
     await cb.answer()

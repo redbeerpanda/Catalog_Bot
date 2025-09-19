@@ -7,6 +7,11 @@ from app.config import settings
 from app.handlers import start_router, catalog_router
 from app.db.session import engine, Base, SessionLocal
 from typing import Callable, Dict, Any, Awaitable
+import sys
+import os
+
+# Добавляем корневую папку проекта в sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class DbSessionMiddleware(BaseMiddleware):
