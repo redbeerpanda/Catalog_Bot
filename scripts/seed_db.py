@@ -12,7 +12,7 @@ SAMPLE_PRODUCTS = [
     },
     {
         "title": "Фигурка Йеннифер из Венгерберга (The Witcher 3)",
-        "image_url": "https://wantshop.ru/media/tmp/ee9ab12663a116103d9b853c877d63a2.jpeg",
+        "image_url": "https://wantshop.ru/media/tmp/ee9ab12663a116103d9b853c877d63a2Битая_фотка))).jpeg",
         "price": 44.99,
         "discount_price": 36.99,
         "short_description": "Высота: 20 см. Оригинальная фигурка Йеннифер от Dark Horse. Отличная детализация, устойчивая подставка.",
